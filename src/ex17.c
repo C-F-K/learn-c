@@ -119,9 +119,13 @@ void Database_set(struct Connection *conn, int id, const char *name, const char 
     if(addr->set) die("Already set, delete it first");
 
     addr->set = 1;
-    // WARNING: bug, read the "How To Break It" and fix this
+    // fixed the f*ck out of the bug -
+    // had to do it in the _set call because shit's const here
+    // the (MAX_DATA - 1)th byte of the string will always be 
+    // null - that's already the case if shit's properly null-
+    // terminated, and becomes the case if you passed a 512-byte
+    // non-null-terminated string to my dang function
     char *res = strncpy(addr->name, name, MAX_DATA);
-    // demonstrate the strncpy bug
     if(!res) die("Name copy failed");
 
     res = strncpy(addr->email, email, MAX_DATA);
@@ -186,7 +190,13 @@ int main(int argc, char *argv[])
 
         case 's':
             if (argc != 6) die("Need id, name, email to set");
-
+            
+            // set these to null bytes if they weren't already- 
+            // that space is claimed anyway, so why not just
+            // index in by the amount of bytes already reserved
+            // this should fix the strncpy bug above
+            argv[4][MAX_DATA - 1] = '\0';
+            argv[5][MAX_DATA - 1] = '\0';
             Database_set(conn, id, argv[4], argv[5]);
             Database_write(conn);
             break;
